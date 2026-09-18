@@ -16,3 +16,16 @@
 # changes instead.
 [server]
 fileWatcherType = "none"
+
+# Every uploaded PDF is held in memory and embedded chunk by chunk, so a very
+# large file can exhaust a small hosted instance. 25MB comfortably covers
+# ordinary documents (the bundled real-world sample is ~2MB) while keeping
+# worst-case memory use bounded. Streamlit's own default is 200MB.
+maxUploadSize = 25
+
+[theme]
+primaryColor = "#4F46E5"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F4F6"
+textColor = "#111827"
+font = "sans serif"
