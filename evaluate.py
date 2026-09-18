@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 
 import pipeline
-from llm_client import LLMRequestError
+from llm_client import LLMConfigError, LLMRequestError
 
 load_dotenv()
 
@@ -119,10 +119,14 @@ def main():
     with open(args.questions, "r", encoding="utf-8") as f:
         questions = json.load(f)
 
-    print(f"Running config A ({CONFIG_A.name})...")
-    run_a = run_config(pdf_bytes, CONFIG_A, questions, delay=args.delay)
-    print(f"Running config B ({CONFIG_B.name})...")
-    run_b = run_config(pdf_bytes, CONFIG_B, questions, delay=args.delay)
+    try:
+        print(f"Running config A ({CONFIG_A.name})...")
+        run_a = run_config(pdf_bytes, CONFIG_A, questions, delay=args.delay)
+        print(f"Running config B ({CONFIG_B.name})...")
+        run_b = run_config(pdf_bytes, CONFIG_B, questions, delay=args.delay)
+    except LLMConfigError as exc:
+        print(f"Cannot run: {exc}", file=sys.stderr)
+        return 1
 
     report = format_report(args.pdf, run_a, run_b)
 

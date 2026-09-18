@@ -124,7 +124,7 @@ test result encountered while building this is logged chronologically in
 Requires Python 3.10+ (developed and tested on Python 3.14).
 
 ```bash
-git clone <this-repository-url>
+git clone https://github.com/piyushgargog/ai-document-assistant.git
 cd ai-document-assistant
 python -m venv venv
 

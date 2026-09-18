@@ -1,5 +1,7 @@
 """Streamlit UI for the AI Document Assistant."""
 
+import sys
+
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -18,6 +20,8 @@ if "_cache_key" not in st.session_state:
     st.session_state["_cache_key"] = None
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 0
+if "_ingest_crashed" not in st.session_state:
+    st.session_state["_ingest_crashed"] = False
 
 st.title("AI Document Assistant")
 st.caption(
@@ -62,15 +66,24 @@ if chunk_overlap >= chunk_size:
 if uploaded_file is not None:
     cache_key = (uploaded_file.name, uploaded_file.size, chunk_size, chunk_overlap)
     if st.session_state["_cache_key"] != cache_key:
+        ingest_crashed = False
         with st.status("Reading and indexing document...", expanded=False) as status:
-            index_state = pipeline.ingest(uploaded_file.getvalue(), chunk_size, chunk_overlap)
-            if index_state is None:
-                status.update(label="Could not read this document", state="error")
+            try:
+                index_state = pipeline.ingest(uploaded_file.getvalue(), chunk_size, chunk_overlap)
+            except Exception as e:
+                print(f"Unexpected error during ingestion: {e}", file=sys.stderr)
+                index_state = None
+                ingest_crashed = True
+                status.update(label="Indexing failed unexpectedly", state="error")
             else:
-                status.update(label="Document indexed", state="complete")
+                if index_state is None:
+                    status.update(label="Could not read this document", state="error")
+                else:
+                    status.update(label="Document indexed", state="complete")
 
         st.session_state["_cache_key"] = cache_key
         st.session_state["_index_state"] = index_state
+        st.session_state["_ingest_crashed"] = ingest_crashed
         st.session_state["messages"] = []
         if index_state is not None:
             st.session_state["messages"].append(
@@ -85,11 +98,18 @@ if uploaded_file is not None:
 
     with st.sidebar:
         if index_state is None:
-            st.error(
-                "Couldn't extract any text from this PDF. It may be empty, "
-                "image-only (scanned without OCR), password-protected, or "
-                "corrupted."
-            )
+            if st.session_state["_ingest_crashed"]:
+                st.error(
+                    "Something went wrong while indexing this document. This "
+                    "isn't a problem with the PDF itself — please try again, "
+                    "and if it keeps happening, check the server logs."
+                )
+            else:
+                st.error(
+                    "Couldn't extract any text from this PDF. It may be empty, "
+                    "image-only (scanned without OCR), password-protected, or "
+                    "corrupted."
+                )
         else:
             with st.container(border=True):
                 st.markdown(f"**{uploaded_file.name}**")
@@ -100,6 +120,7 @@ if uploaded_file is not None:
                 st.session_state["uploader_key"] += 1
                 st.session_state["_index_state"] = None
                 st.session_state["_cache_key"] = None
+                st.session_state["_ingest_crashed"] = False
                 st.session_state["messages"] = []
                 st.rerun()
 
@@ -128,6 +149,10 @@ if uploaded_file is not None:
                         answer_text, sources, is_error = str(e), None, True
                     except LLMRequestError as e:
                         answer_text, sources, is_error = f"The LLM API request failed: {e}", None, True
+                    except Exception as e:
+                        print(f"Unexpected error while answering: {e}", file=sys.stderr)
+                        answer_text = "Something went wrong while answering that question. Please try again."
+                        sources, is_error = None, True
 
                 if is_error:
                     st.error(answer_text)
@@ -147,6 +172,7 @@ if uploaded_file is not None:
 else:
     st.session_state["_index_state"] = None
     st.session_state["_cache_key"] = None
+    st.session_state["_ingest_crashed"] = False
 
     with st.container(border=True):
         st.markdown("#### Get started")
