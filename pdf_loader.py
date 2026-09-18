@@ -10,15 +10,13 @@ def load_pdf_pages(pdf_bytes: bytes) -> list[tuple[int, str]]:
     Pages with no extractable text are skipped. Returns an empty list
     for an invalid, corrupt, or fully-empty PDF instead of raising.
     """
+    pages = []
     try:
-        doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
+            for page_index in range(doc.page_count):
+                text = doc[page_index].get_text().strip()
+                if text:
+                    pages.append((page_index + 1, text))
     except Exception:
         return []
-
-    pages = []
-    for page_index in range(doc.page_count):
-        text = doc[page_index].get_text().strip()
-        if text:
-            pages.append((page_index + 1, text))
-    doc.close()
     return pages

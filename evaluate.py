@@ -20,11 +20,13 @@ content, structure, or page numbers.
 import argparse
 import json
 import sys
+import time
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
 import pipeline
+from llm_client import LLMRequestError
 
 load_dotenv()
 
@@ -41,15 +43,22 @@ CONFIG_A = Config(name="A - small chunks, low top-k", chunk_size=300, chunk_over
 CONFIG_B = Config(name="B - large chunks, higher top-k", chunk_size=1000, chunk_overlap=200, top_k=5)
 
 
-def run_config(pdf_bytes: bytes, config: Config, questions: list[str]) -> dict:
+def run_config(pdf_bytes: bytes, config: Config, questions: list[str], delay: float = 0.0) -> dict:
     state = pipeline.ingest(pdf_bytes, chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
     if state is None:
         return {"config": config, "error": "ingest failed: no extractable text in PDF"}
 
     results = []
-    for q in questions:
-        result = pipeline.answer(q, state, top_k=config.top_k)
-        results.append({"question": q, "answer": result["answer"], "sources": result["sources"]})
+    for i, q in enumerate(questions):
+        if delay and i:
+            time.sleep(delay)
+        try:
+            result = pipeline.answer(q, state, top_k=config.top_k)
+            answer_text, sources = result["answer"], result["sources"]
+        except LLMRequestError as exc:
+            # One rate-limited or failed question shouldn't discard the whole run.
+            answer_text, sources = f"[LLM request failed: {exc}]", []
+        results.append({"question": q, "answer": answer_text, "sources": sources})
     return {
         "config": config,
         "num_pages": state.num_pages,
@@ -59,7 +68,7 @@ def run_config(pdf_bytes: bytes, config: Config, questions: list[str]) -> dict:
 
 
 def format_report(pdf_path: str, run_a: dict, run_b: dict) -> str:
-    lines = [f"# Chunking/Retrieval Configuration Comparison\n", f"Document: `{pdf_path}`\n"]
+    lines = ["# Chunking/Retrieval Configuration Comparison\n", f"Document: `{pdf_path}`\n"]
 
     for run in (run_a, run_b):
         cfg = run["config"]
@@ -94,6 +103,15 @@ def main():
     parser.add_argument("--pdf", required=True, help="Path to the PDF to evaluate")
     parser.add_argument("--questions", required=True, help="Path to a JSON file: a list of question strings")
     parser.add_argument("--output", default=None, help="Optional path to write the Markdown report")
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=8.0,
+        help=(
+            "Seconds to pause between questions. Batch runs can otherwise trip a "
+            "provider's tokens-per-minute limit; set 0 to disable."
+        ),
+    )
     args = parser.parse_args()
 
     with open(args.pdf, "rb") as f:
@@ -102,9 +120,9 @@ def main():
         questions = json.load(f)
 
     print(f"Running config A ({CONFIG_A.name})...")
-    run_a = run_config(pdf_bytes, CONFIG_A, questions)
+    run_a = run_config(pdf_bytes, CONFIG_A, questions, delay=args.delay)
     print(f"Running config B ({CONFIG_B.name})...")
-    run_b = run_config(pdf_bytes, CONFIG_B, questions)
+    run_b = run_config(pdf_bytes, CONFIG_B, questions, delay=args.delay)
 
     report = format_report(args.pdf, run_a, run_b)
 
