@@ -1,0 +1,8 @@
+[
+  "What is the Transformer architecture based on, and what does it dispense with?",
+  "How many identical layers are in the Transformer's encoder stack?",
+  "What BLEU score did the Transformer (big) model achieve on the WMT 2014 English-to-French translation task?",
+  "How long did it take to train the Transformer model that achieved a new state-of-the-art on English-to-French translation, and on what hardware?",
+  "Who proposed scaled dot-product attention and multi-head attention?",
+  "What was the total monetary cost, in US dollars, of training the Transformer models?"
+]
