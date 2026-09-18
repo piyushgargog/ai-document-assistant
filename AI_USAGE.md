@@ -74,6 +74,21 @@ the end.
   verified by re-running the full test suite afterward (see
   `DECISIONS.md`).
 
+## Review and Hardening Pass
+
+- Claude Code ran a project-wide review (architecture, RAG correctness,
+  security, PDF handling, state management, UI/UX, deployment,
+  dependencies, documentation) and fixed the issues it found. The full
+  list, including what was actually broken and how each fix was
+  verified, is in `DECISIONS.md`.
+- Findings were verified rather than assumed: the `Retry-After` parsing
+  fix was unit-tested across nine header forms, the prompt-injection
+  defense was tested against a purpose-built malicious PDF, and the
+  error-state fix was confirmed in a real browser.
+- After hardening the system prompt, the full two-configuration
+  evaluation was re-run to confirm the previously documented findings
+  were still accurate rather than silently invalidated.
+
 ## Principles followed
 
 - No fabricated test results, decisions, or requirements — ever.

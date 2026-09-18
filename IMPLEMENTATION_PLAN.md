@@ -50,6 +50,9 @@ optional enhancements (Phase 10) only happen if 0–9 are solid.
 - **Depends on**: Phases 1–5.
 
 ## Phase 7 — Streamlit UI (`app.py`)
+> Note: this describes the original plan. The UI was later rebuilt as a
+> chat interface (message history, per-answer sources popover, sidebar
+> document card) — see `DECISIONS.md` for that change and its rationale.
 - Upload widget → calls `pipeline.ingest`.
 - Sidebar: chunk size, chunk overlap, top-k sliders (defaults + ability to change and re-ingest).
 - Question input → calls `pipeline.answer` → renders answer, then an expandable "Sources" section per result showing page number + passage text (+ similarity score).

@@ -24,13 +24,20 @@ those passages) so answers stay traceable back to the source text.
 ## Key features
 
 - Upload any PDF and ask questions about it — no document-specific setup.
+- Chat-style interface that keeps the conversation visible for the
+  current session, so you can work through a document question by
+  question.
 - Page-aware text extraction, so every retrieved passage keeps its
   source page number.
 - Answers are grounded: the LLM is instructed to answer only from
   retrieved passages, and to say so explicitly when they don't contain
   the answer.
-- Every answer displays its supporting page number(s) and passage text,
-  so you can verify it against the original document.
+- Every answer carries its own sources panel showing the supporting page
+  number(s), similarity scores, and passage text, so you can verify it
+  against the original document.
+- Retrieved document text is treated as untrusted data: it is fenced in
+  the prompt and the model is instructed never to follow instructions
+  embedded in a document (see [Security](#security-notes) below).
 - Chunk size, chunk overlap, and retrieval top-k are configurable
   (tucked into an "Advanced settings" panel so the default UI stays
   simple) — chunking and retrieval settings measurably affect answer
@@ -160,27 +167,57 @@ This opens the app in your browser at `http://localhost:8501`.
 
 ## Usage
 
-1. Upload a PDF in the sidebar.
-2. Wait for "Document ready: N pages, M chunks indexed."
-3. Type a question about the document and press Enter.
-4. Read the answer, then expand **Sources** to see exactly which page(s)
-   and passage(s) it came from, with similarity scores.
-5. (Optional) Open **Advanced settings** in the sidebar to change chunk
-   size, chunk overlap, or top-k, and re-ask — the document is
-   re-indexed automatically when these change.
+1. Upload a PDF in the sidebar (25MB limit).
+2. Wait for indexing to finish — the sidebar then shows a document card
+   with the filename, page count, chunk count, and a **Ready** badge.
+3. Ask a question in the chat box at the bottom and press Enter.
+4. Read the answer, then open the **Sources** panel attached to that
+   answer to see exactly which page(s) and passage(s) it came from, with
+   similarity scores.
+5. Keep asking follow-up questions — the conversation stays visible for
+   the session. Each question is answered independently from the
+   document (previous turns are not fed back into the model).
+6. Use **Remove document** in the sidebar to clear the document and the
+   conversation, then upload a different PDF.
+7. (Optional) Open **Advanced settings** in the sidebar to change chunk
+   size, chunk overlap, or top-k — the document is re-indexed
+   automatically when chunking settings change.
 
-If the document contains no extractable text (empty/corrupt/image-only
-PDF), or the LLM API key is missing/invalid, the app shows a clear error
-message instead of crashing.
+If the document contains no extractable text (empty, corrupt,
+password-protected, or image-only without OCR), or the LLM API key is
+missing/invalid, the app shows a clear error message instead of
+crashing.
 
 ### How source citations work
 
 Every retrieved passage is tagged with the page number it came from
 during chunking (`chunker.py`). When the LLM answers, the app shows the
-top-k retrieved passages alongside the answer — independent of whether
-the LLM explicitly cites a page in its own text — so you can always see
-which parts of the document the answer is (or isn't) actually grounded
-in, along with a similarity score for each.
+top-k retrieved passages alongside that specific answer — independent of
+whether the LLM explicitly cites a page in its own text — so you can
+always see which parts of the document the answer is (or isn't) actually
+grounded in, along with a similarity score for each. Passage text is
+rendered literally, never as markdown, so document content cannot inject
+formatting into the interface.
+
+## Security notes
+
+This is a document QA tool that feeds untrusted file content into an
+LLM, so a few things are handled deliberately:
+
+- **Indirect prompt injection**: retrieved passages are fenced inside
+  explicit delimiters and the system prompt instructs the model to treat
+  them as quoted data, never as instructions. Verified against a test
+  PDF containing injected "ignore all previous instructions" and
+  system-prompt-exfiltration payloads — the model reported the injected
+  text as document content and refused the exfiltration attempt instead
+  of obeying either.
+- **Secrets**: the API key is read only from the environment
+  (`LLM_API_KEY`). It is never logged, rendered, or committed; `.env` is
+  gitignored and only `.env.example` (placeholders) is tracked.
+- **Resource limits**: uploads are capped at 25MB and questions at 1000
+  characters, since each upload is held in memory and embedded.
+- **Rendering**: document text is displayed with Streamlit's literal
+  text rendering (no raw HTML, no markdown interpretation).
 
 ## Evaluation methodology
 
@@ -240,9 +277,13 @@ question strings.
 
 - Single document per session (multi-document support would be a
   natural extension — see `IMPLEMENTATION_PLAN.md`).
-- No conversation history — each question is answered independently.
-- Scanned/image-only PDFs with no embedded text layer will not extract
-  any text (no OCR step).
+- The conversation is displayed for the session but is not used as
+  context: each question is answered independently from the document, so
+  follow-ups like "and what about that one?" won't resolve against the
+  previous turn.
+- Session state is per-browser-session and resets on reload.
+- Uploads are capped at 25MB, and scanned/image-only PDFs with no
+  embedded text layer will not extract any text (no OCR step).
 - Chunking is character-based, not sentence/semantic-boundary aware —
   simple and predictable, but can occasionally split content (e.g. a
   table row) across a chunk boundary, as observed during evaluation

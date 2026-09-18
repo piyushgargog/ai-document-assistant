@@ -32,7 +32,10 @@ Build a document question-answering tool that:
 
 ### Out of scope for the core build (future enhancements, only after core requirements work)
 - Multiple simultaneous documents.
-- Multi-turn conversation history / follow-up question resolution.
+- Conversational context: the UI keeps the session's questions and
+  answers visible, but each question is answered independently from the
+  document — prior turns are not fed back into the model, so follow-ups
+  are not resolved against earlier answers.
 - Automatic document summary on load.
 
 ### Explicitly not building

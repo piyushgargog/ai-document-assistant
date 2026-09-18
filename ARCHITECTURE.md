@@ -12,8 +12,11 @@ framework's abstraction.
 ## Components
 
 1. **UI layer** (`app.py`, Streamlit)
-   Handles file upload, question input, settings (chunk size / overlap /
-   top-k), and renders the answer + source passages.
+   Handles file upload, document status, settings (chunk size / overlap /
+   top-k), and a chat-style question/answer view. The conversation is kept
+   in `st.session_state` for display only — each question is still sent to
+   the pipeline independently, with no previous turns added to the prompt.
+   Each answer carries its own sources panel.
 
 2. **Document loader** (`pdf_loader.py`)
    Uses PyMuPDF (`fitz`) to open the PDF and extract text page by page.
@@ -28,7 +31,10 @@ framework's abstraction.
 
 4. **Embedder** (`embedder.py`)
    Wraps a `sentence-transformers` model (`all-MiniLM-L6-v2`) to turn chunk
-   text and questions into vectors.
+   text and questions into vectors. The model is held in a module-level
+   singleton so it loads once per process and is reused across reruns —
+   deliberately plain Python rather than `st.cache_resource`, so the module
+   stays usable outside Streamlit (e.g. from `evaluate.py`).
 
 5. **Vector store / retriever** (`vector_store.py`)
    Wraps a FAISS `IndexFlatIP` (cosine similarity via normalized vectors).
@@ -42,7 +48,11 @@ framework's abstraction.
    provider can be swapped without touching code. Builds a strict grounding
    prompt: system instruction + retrieved passages + question, with an
    explicit instruction to say the document doesn't contain the answer if
-   the passages don't support one.
+   the passages don't support one. Retrieved passages are fenced in
+   delimiters and declared untrusted, so instructions embedded in a
+   document are treated as quoted content rather than obeyed. Rate-limit
+   (HTTP 429) responses are retried with backoff that honors `Retry-After`,
+   bounded so a long back-off surfaces as an error instead of hanging.
 
 7. **Orchestration** (`pipeline.py`)
    Ties the above together: `load → chunk → embed → index` at
@@ -125,7 +135,12 @@ difference recorded in `DECISIONS.md` during the testing phase.
 - **Invalid/empty PDF**: loader returns no pages → UI shows an explicit
   error, ingestion is blocked (no empty index built).
 - **Missing API key**: LLM client raises a clear configuration error on
-  first call, caught by the UI and shown as a message — not a stack trace.
+  first call, caught by the UI and shown inside the assistant's reply for
+  that turn — not a stack trace.
+- **Rate limiting / API failure**: retried with bounded backoff, then
+  surfaced as a readable error in the conversation. `evaluate.py`
+  additionally paces its requests and records a per-question failure
+  rather than discarding a whole batch run.
 - **No relevant chunks found** (e.g. off-topic question): retrieval still
   returns its top-k (FAISS always returns *something*), but similarity
   scores will be low; the prompt's grounding instruction handles the
