@@ -1,0 +1,18 @@
+# Streamlit's file watcher (used for auto-rerun when a source file changes)
+# scans every module in sys.modules on each change, checking `hasattr(m,
+# "__path__")`. transformers (a sentence-transformers dependency, used here
+# only for text embeddings) registers lazy-loaded proxy modules for vision
+# model submodules (e.g. Aria, BEiT image processors) even though this app
+# never touches them. Merely checking hasattr() on those proxies triggers
+# `import torchvision`, which isn't installed (this app is text-only and
+# doesn't need it), so the watcher logs repeated harmless
+# "ModuleNotFoundError: No module named 'torchvision'" warnings.
+#
+# Both "watchdog" and "poll" file-watcher types still run this scan; "none"
+# is the only option that skips it, since it's gated in Streamlit's own
+# app_session.py by `fileWatcherType != "none"`. Trade-off: editing a
+# source file while the app is running won't auto-rerun it in the browser
+# -- restart `streamlit run` (or refresh after restarting) to pick up
+# changes instead.
+[server]
+fileWatcherType = "none"
