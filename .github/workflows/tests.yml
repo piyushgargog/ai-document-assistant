@@ -29,6 +29,13 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
+      - name: Install CPU-only PyTorch
+        # Same reasoning as the Dockerfile: installing the CPU wheel first
+        # keeps sentence-transformers from pulling PyPI's default torch
+        # build, which bundles several hundred MB of unused NVIDIA/CUDA
+        # packages on Linux and slows every CI run down for nothing.
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
