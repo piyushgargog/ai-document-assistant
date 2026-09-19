@@ -296,6 +296,34 @@ question strings.
 
 ## Deployment
 
+### Live deployment
+
+Running at **http://65.0.199.172** — an AWS EC2 `t3.small` (2 vCPU, 2GiB
+RAM, Free Tier eligible), region `ap-south-1` (Mumbai), verified working
+end-to-end (upload → indexing → grounded answer with source citation →
+follow-up → correct refusal on an unanswerable question → remove/re-upload,
+via a real browser against the public URL). Measured memory usage under
+real load (a 15-page PDF, sentence-transformers model loaded, an actual
+LLM call) peaked at 685MiB — comfortable headroom on the 2GiB instance.
+
+Setup used: Docker (installed via the official Docker apt repository),
+the repo's own `Dockerfile`, running as `docker run --restart
+unless-stopped` (survives reboots automatically), with Nginx as a
+reverse proxy in front (`client_max_body_size 25m` to match the app's
+upload limit, generous proxy timeouts for LLM calls) forwarding port 80
+to the container's internal `127.0.0.1:8000`. Only ports 80 (public) and
+22 (SSH, restricted to a specific IP) are open in the security group —
+no Elastic IP, load balancer, NAT gateway, or RDS were created; the
+instance's own public IPv4 is used directly. HTTPS is not yet configured
+(would need a domain, out of scope here — see Known limitations).
+
+`LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL` were set via a `.env` file
+transferred directly to the instance over `scp` and passed to the
+container with `--env-file` — never committed, never part of the Docker
+image, never printed to any log.
+
+### Deploying it yourself, anywhere
+
 The app is a standard FastAPI ASGI app, deployable anywhere that can run
 one. A `Dockerfile` is included:
 
@@ -304,19 +332,23 @@ docker build -t ai-document-assistant .
 docker run -p 8000:8000 --env-file .env ai-document-assistant
 ```
 
-Any host that runs containers (Render, Railway, Fly.io, Google Cloud
+Any host that runs containers (a plain VM, Render, Railway, Google Cloud
 Run, etc.) works the same way: build the image, set `LLM_API_KEY` (and
 optionally `LLM_BASE_URL`/`LLM_MODEL`) as environment variables/secrets
 on the platform, and point it at port 8000. There's no platform-specific
 configuration in this repo beyond the `Dockerfile` itself, deliberately —
 picking one hosting provider's proprietary config format over a portable
 container felt like the wrong default for a project meant to be run
-anywhere.
+anywhere. Note: the `Dockerfile` installs PyTorch's CPU-only wheel
+explicitly (see `DECISIONS.md`) — without that, a plain `pip install`
+of this project's dependencies on Linux pulls several hundred MB of
+unused NVIDIA CUDA packages, which matters on a small instance's disk.
 
 **Note on scale**: session state (the FAISS index per uploaded document)
 lives in the process's memory — see Known limitations below. This is
-fine for a single instance; it is not designed to run behind a
-load balancer with multiple replicas without a shared session store.
+fine for a single instance (which is exactly what's running above); it
+is not designed to run behind a load balancer with multiple replicas
+without a shared session store.
 
 ## Known limitations
 
@@ -345,10 +377,14 @@ load balancer with multiple replicas without a shared session store.
   slow down rapid, repeated evaluation runs; `llm_client.py` retries
   automatically with backoff, but very fast bulk evaluation may still be
   gated by provider limits.
-- No live/hosted deployment of this app has been verified as part of
-  this project; the `Dockerfile` and instructions above are correct and
-  tested locally, but "deploys cleanly on X" for any specific third-party
-  platform hasn't been claimed unless it's actually been done.
+- The live deployment (see above) has no HTTPS/TLS — it's plain HTTP on
+  a raw IP address. Adding HTTPS would need a domain name (not set up
+  here) and a certificate; both are reasonable next steps but out of
+  scope for this pass.
+- The live deployment is a single EC2 instance with no monitoring,
+  auto-restart-on-crash beyond Docker's own `--restart unless-stopped`,
+  or backup — appropriate for a portfolio demo, not for anything
+  requiring uptime guarantees.
 
 ## Possible future improvements
 

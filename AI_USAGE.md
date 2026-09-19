@@ -138,6 +138,36 @@ the end.
   so a "found and fixed N issues" summary doesn't imply every impression
   during review turned out to be a real problem.
 
+## Live Deployment
+
+- Claude Code evaluated multiple hosting platforms against real,
+  researched or empirically-tested constraints — not assumptions. Render
+  was tested by actually running the built image with `--memory=512m`
+  and measuring 99.4% usage at idle before rejecting it; Fly.io/Railway
+  were rejected based on their actual current (2026) free-tier terms,
+  researched rather than recalled from training data after already being
+  wrong once about Hugging Face Spaces' pricing in this same session.
+- It correctly stopped and asked for account-level action, rather than
+  attempting workarounds, at two genuine credential boundaries: it never
+  asked for AWS secret access keys after being told not to (accepting
+  scoped SSH-only access to a single instance instead), and it never
+  attempted to create AWS/Oracle/GCP accounts itself, since those require
+  identity/card verification only the user could complete.
+- It found and fixed a real deployment bug (PyPI's default Linux torch
+  wheel pulling unnecessary multi-hundred-MB NVIDIA CUDA packages) by
+  reading the actual build log during deployment, not by inspecting the
+  Dockerfile in the abstract — the problem was only visible while it was
+  happening.
+- It caught and disclosed its own mistake (an overly broad `docker
+  system prune -af` deleting the image it had just built) in the same
+  turn it happened, rather than only in retrospect.
+- When SSH access to the deployed instance stopped working partway
+  through final verification, it did not fabricate or extrapolate a live
+  memory reading. It reported the actual local measurement it had (from
+  running the identical image under the same load) as exactly that — a
+  local measurement, not a live one — and flagged the SSH loss as an
+  open item for the user to check, rather than guessing at a cause.
+
 ## Principles followed
 
 - No fabricated test results, decisions, or requirements — ever.
