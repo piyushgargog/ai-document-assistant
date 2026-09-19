@@ -298,7 +298,7 @@ question strings.
 
 ### Live deployment
 
-Running at **http://65.0.199.172** — an AWS EC2 `t3.small` (2 vCPU, 2GiB
+Running at **https://ai-doc-assistant.duckdns.org** — an AWS EC2 `t3.small` (2 vCPU, 2GiB
 RAM, Free Tier eligible), region `ap-south-1` (Mumbai), verified working
 end-to-end (upload → indexing → grounded answer with source citation →
 follow-up → correct refusal on an unanswerable question → remove/re-upload,
