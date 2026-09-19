@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-This is a single-branch personal project — there are no maintained release
+This is a single-branch project — there are no maintained release
 branches or version tags. Only the latest commit on `main` is supported.
 Security fixes, if needed, will land there.
 
@@ -26,10 +26,11 @@ For context before reporting an issue, see the "Security notes" section of
 Please **do not** open a public GitHub issue for a security vulnerability.
 
 GitHub's private vulnerability reporting is not currently enabled on this
-repository, so please report privately by contacting the maintainer directly
-via their GitHub profile
-([@piyushgargog](https://github.com/piyushgargog)) instead of filing a public
-issue.
+repository, so please report privately by contacting one of the maintainers
+directly via GitHub —
+[@piyushgargog](https://github.com/piyushgargog) or
+[@vaibhavparmarog](https://github.com/vaibhavparmarog) — instead of filing a
+public issue.
 
 Please include:
 - A description of the issue and its potential impact.
@@ -50,6 +51,6 @@ you configure). Report those directly to the provider.
 
 ## Response expectations
 
-This is a personal project maintained in spare time — there's no guaranteed
+This is a small project maintained in spare time — there's no guaranteed
 response time or SLA, but security reports will be prioritized over feature
 requests and general bugs.

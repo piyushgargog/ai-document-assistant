@@ -1,9 +1,9 @@
 # Contributing to AI Document Assistant
 
 Thanks for your interest in this project. It's a personal/portfolio project
-maintained by one person in spare time, so please set expectations
-accordingly — issues and PRs are welcome, but there's no guaranteed response
-time and no dedicated review team.
+maintained by a small team (Piyush Garg and Vaibhav Parmar) in spare time,
+so please set expectations accordingly — issues and PRs are welcome, but
+there's no guaranteed response time and no dedicated review team.
 
 ## Before you start
 

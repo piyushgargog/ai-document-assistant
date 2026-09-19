@@ -38,7 +38,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement Responsibilities
 
-The maintainer is responsible for clarifying and enforcing standards of
+The maintainers are responsible for clarifying and enforcing standards of
 acceptable behavior and will take appropriate and fair corrective action in
 response to any behavior deemed inappropriate, threatening, offensive, or
 harmful.
@@ -53,9 +53,11 @@ officially representing the project in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported by opening a GitHub issue for non-sensitive concerns, or by
-contacting the maintainer directly via GitHub
-([@piyushgargog](https://github.com/piyushgargog)) for sensitive reports. All
-complaints will be reviewed and investigated promptly and fairly.
+contacting one of the maintainers directly via GitHub —
+[@piyushgargog](https://github.com/piyushgargog) or
+[@vaibhavparmarog](https://github.com/vaibhavparmarog) — for sensitive
+reports. All complaints will be reviewed and investigated promptly and
+fairly.
 
 ## Attribution
 
