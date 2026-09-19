@@ -32,8 +32,10 @@ cp .env.example .env   # then fill in LLM_API_KEY
 Run the app locally with:
 
 ```bash
-streamlit run app.py
+uvicorn main:app --reload
 ```
+
+Then open `http://localhost:8000`.
 
 ## Project structure
 
@@ -48,8 +50,14 @@ making changes rather than merging responsibilities:
 | `vector_store.py` | FAISS similarity search |
 | `llm_client.py` | LLM API call + grounding prompt |
 | `pipeline.py` | Orchestrates the above (ingest / answer) |
-| `app.py` | Streamlit UI only |
+| `main.py` | FastAPI backend (HTTP API, session handling) only |
+| `static/` | Frontend — plain HTML/CSS/JS, no framework, no build step |
 | `evaluate.py` | Reproducible chunking/retrieval comparison |
+
+Keep the pipeline (`pdf_loader.py` through `pipeline.py`) free of any web
+framework concerns — `main.py` is the only file that should import
+`fastapi`. This is what lets `evaluate.py` and the `tests/` suite call the
+pipeline directly, with no server needed.
 
 The project deliberately avoids heavyweight frameworks (see `DECISIONS.md`
 for why LangChain/LangGraph aren't used) in favor of small, explicit,
@@ -59,8 +67,9 @@ any addition to the pipeline in the PR description.
 ## Testing your changes
 
 There's a small `pytest` suite (`tests/`) covering PDF extraction, chunking,
-embeddings, FAISS retrieval, the LLM client, the full pipeline, and
-prompt-injection resistance:
+embeddings, FAISS retrieval, the LLM client, the full pipeline,
+prompt-injection resistance, and the FastAPI HTTP layer (`test_api.py`,
+using `TestClient` — no server needs to be running):
 
 ```bash
 pytest -v
@@ -78,10 +87,12 @@ credential-free.
 What's **not** automated, and still needs manual verification before opening
 a PR:
 
-- Run `streamlit run app.py`, upload `sample_docs/sample.pdf`, and confirm
-  the full flow works: upload, indexing, an answerable question with correct
-  source citations, and a clearly unanswerable question. The UI itself has
-  no automated test coverage.
+- Run `uvicorn main:app --reload`, open `http://localhost:8000`, upload
+  `sample_docs/sample.pdf`, and confirm the full flow works: upload,
+  indexing, an answerable question with correct source citations, a
+  clearly unanswerable question, and remove/re-upload. Check it at a
+  mobile viewport width too if you touched `static/`. The frontend itself
+  has no automated test coverage.
 - If your change touches retrieval, chunking, or the prompt, run
   `evaluate.py` against a document and question set and check the comparison
   report for regressions:

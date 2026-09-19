@@ -110,6 +110,34 @@ the end.
   valid key configured, because `.env` wasn't being loaded — rather than
   reporting the misleading "6 skipped" result as if it were success.
 
+## UI/Architecture Migration
+
+- Claude Code was authorized to independently choose and implement a
+  replacement for the Streamlit UI, whose mobile experience was the
+  motivating problem. It evaluated staying on Streamlit, a full SPA
+  framework, and a minimal FastAPI + static-frontend approach, and chose
+  the last one; the reasoning is in `DECISIONS.md`, not just the outcome.
+- It deliberately left the entire RAG pipeline (`pdf_loader.py` through
+  `pipeline.py`) untouched, confirming this was possible before starting
+  by checking that `evaluate.py` and the `tests/` suite only import the
+  pipeline modules, never the UI layer — so the migration couldn't
+  silently change retrieval or grounding behavior.
+- It found and fixed three real bugs in its own new code before calling
+  the work done: a CSS specificity bug that would have broken the
+  document-view's hide/show logic, a chat input that didn't stay pinned
+  to the screen bottom with few messages, and a devcontainer config
+  (added by the user in an earlier, unrelated commit) that would have
+  launched a command referencing a file this migration deleted. None of
+  these were requested explicitly — they were caught by actually running
+  and looking at the result, not assumed to be fine because the code
+  looked reasonable.
+- A visual "this doesn't look centered" impression from a screenshot was
+  checked against actual computed CSS values before being treated as a
+  bug — it wasn't one (the layout was already correct; the impression
+  came from a small element in a wide, empty viewport). This is recorded
+  so a "found and fixed N issues" summary doesn't imply every impression
+  during review turned out to be a real problem.
+
 ## Principles followed
 
 - No fabricated test results, decisions, or requirements — ever.

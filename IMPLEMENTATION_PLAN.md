@@ -4,8 +4,15 @@ Each phase should be independently runnable/testable before moving to the
 next. Phases 0–7 deliver all core requirements; 8–9 are testing and docs;
 optional enhancements (Phase 10) only happen if 0–9 are solid.
 
+> This file describes the original implementation plan, largely followed
+> as written for the pipeline (Phases 1–6) and testing (Phase 8). The UI
+> (Phase 7) has since been rebuilt twice — first from a plain form into a
+> Streamlit chat interface, then from Streamlit into a FastAPI backend
+> with a static HTML/CSS/JS frontend — see `DECISIONS.md` for both and
+> why. References to `app.py`/`streamlit run` below are historical.
+
 ## Phase 0 — Project Setup
-- `requirements.txt` (streamlit, pymupdf, sentence-transformers, faiss-cpu, requests, python-dotenv, numpy).
+- `requirements.txt` (originally streamlit, pymupdf, sentence-transformers, faiss-cpu, requests, python-dotenv, numpy — streamlit was later replaced by fastapi/uvicorn/python-multipart, see `DECISIONS.md`).
 - `.env.example` documenting `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`.
 - Folder skeleton: `app.py`, `pdf_loader.py`, `chunker.py`, `embedder.py`, `vector_store.py`, `llm_client.py`, `pipeline.py`, `tests/` (manual test notes), `sample_docs/`.
 - **Test**: `pip install -r requirements.txt` succeeds; `streamlit run app.py` opens a blank page without errors.

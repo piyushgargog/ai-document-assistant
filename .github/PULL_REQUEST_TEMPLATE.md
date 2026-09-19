@@ -21,8 +21,8 @@ substitute for describing what you actually ran (see `CONTRIBUTING.md`):
 
 - [ ] Ran `pytest -v` locally (with `LLM_API_KEY` set, if possible, to also
       exercise the LLM-dependent tests that CI skips)
-- [ ] Ran `streamlit run app.py` and manually tested the affected flow
-      (the UI has no automated test coverage)
+- [ ] Ran `uvicorn main:app --reload` and manually tested the affected flow
+      (the frontend has no automated test coverage)
 - [ ] Ran `evaluate.py` and checked for retrieval/answer regressions
       (if this PR touches chunking, retrieval, or the prompt)
 - [ ] Other (describe):

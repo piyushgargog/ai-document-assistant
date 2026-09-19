@@ -24,7 +24,7 @@ you have one.
 **Environment**
 - OS:
 - Python version:
-- `streamlit --version` output:
+- Browser (if the bug is in the web UI):
 - LLM provider/model configured (e.g. Groq `openai/gpt-oss-120b`) — **do not
   include your API key**:
 

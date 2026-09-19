@@ -24,9 +24,8 @@ those passages) so answers stay traceable back to the source text.
 ## Key features
 
 - Upload any PDF and ask questions about it — no document-specific setup.
-- Chat-style interface that keeps the conversation visible for the
-  current session, so you can work through a document question by
-  question.
+- A minimal, mobile-responsive chat interface — no frontend framework, no
+  build step, just static HTML/CSS/JS served by the backend.
 - Page-aware text extraction, so every retrieved passage keeps its
   source page number.
 - Answers are grounded: the LLM is instructed to answer only from
@@ -38,44 +37,47 @@ those passages) so answers stay traceable back to the source text.
 - Retrieved document text is treated as untrusted data: it is fenced in
   the prompt and the model is instructed never to follow instructions
   embedded in a document (see [Security](#security-notes) below).
-- Chunk size, chunk overlap, and retrieval top-k are configurable
-  (tucked into an "Advanced settings" panel so the default UI stays
-  simple) — chunking and retrieval settings measurably affect answer
-  quality (see [Evaluation methodology](#evaluation-methodology) below).
 - Works with any OpenAI-compatible LLM API (OpenAI, Groq, or a local
   compatible endpoint) via environment variables — no vendor lock-in.
 
-## Architecture / RAG pipeline
+## Architecture
 
-A single-process Streamlit app implementing RAG as explicit,
-individually-inspectable steps rather than a framework's black-box
-chain — no LangChain/LangGraph (see `DECISIONS.md` for why).
+A small FastAPI backend wraps an explicit, individually-inspectable RAG
+pipeline (no LangChain/LangGraph — see `DECISIONS.md` for why) and serves
+a static frontend from the same origin, so no CORS setup is needed. The
+pipeline itself — extraction, chunking, embedding, retrieval, prompting —
+is unchanged from the project's original design; only the UI layer
+changed (see `DECISIONS.md` for that migration and why).
 
 ```
-PDF upload
+PDF upload (browser)
+   │  POST /api/ingest
+   ▼
+FastAPI (main.py)
    │  PyMuPDF (page-aware extraction)
    ▼
 [(page_num, page_text), ...]
-   │  chunker.py (configurable size / overlap)
+   │  chunker.py (fixed size / overlap)
    ▼
-[{text, page}, ...]  ──► sentence-transformers (all-MiniLM-L6-v2) ──► embeddings
-   │                                                                      │
-   │                                                                      ▼
-   │                                                          FAISS IndexFlatIP
+[{text, page}, ...]  ──────────────► sentence-transformers ──► chunk embeddings
+   │                                                                  │
+   │                                                                  ▼
+   │                                                         FAISS index (in memory,
+   │                                                         held server-side per session)
    │
-question ──► embed ──► FAISS similarity search ──► top-k {text, page, score}
-                                                          │
-                                                          ▼
-                                prompt = system instruction + passages + question
-                                                          │
-                                                          ▼
-                                    LLM (any OpenAI-compatible API, via env vars)
-                                                          │
-                                                          ▼
-                                     answer text + source pages/passages
-                                                          │
-                                                          ▼
-                                            Streamlit renders both
+question (browser)
+   │  POST /api/ask
+   ▼
+FastAPI ──► embed question ──► FAISS similarity search ──► top-k {text, page, score}
+                                                                  │
+                                                                  ▼
+                                     prompt = system instruction + passages + question
+                                                                  │
+                                                                  ▼
+                                         LLM API call (any OpenAI-compatible endpoint)
+                                                                  │
+                                                                  ▼
+                                          {answer, sources} JSON ──► rendered by app.js
 ```
 
 | Component | File | Tech |
@@ -86,7 +88,8 @@ question ──► embed ──► FAISS similarity search ──► top-k {text
 | Vector store | `vector_store.py` | FAISS `IndexFlatIP` |
 | LLM client | `llm_client.py` | `requests`, OpenAI-compatible REST |
 | Orchestration | `pipeline.py` | ties the above together |
-| UI | `app.py` | Streamlit |
+| Backend / API | `main.py` | FastAPI, in-memory per-session state |
+| Frontend | `static/index.html`, `static/style.css`, `static/app.js` | vanilla HTML/CSS/JS, no framework |
 | Evaluation | `evaluate.py` | reproducible two-config comparison script |
 
 Full design rationale is in `PROJECT_SPEC.md`, `ARCHITECTURE.md`, and
@@ -97,27 +100,32 @@ test result encountered while building this is logged chronologically in
 ## Technology stack
 
 - **Python**
-- **Streamlit** — UI, no frontend build step
+- **FastAPI** + **uvicorn** — a minimal HTTP API and static file server,
+  no heavier web framework needed for this project's scope
+- **Vanilla HTML/CSS/JS** frontend — no React/Vue/build tooling; a single
+  page is all this needs
 - **PyMuPDF** — page-aware PDF text extraction
 - **sentence-transformers** (`all-MiniLM-L6-v2`) — text embeddings
 - **FAISS** — vector similarity search
 - Any **OpenAI-compatible LLM API** (OpenAI, Groq, etc.) via a minimal
   `requests`-based client — no heavyweight SDK or agent framework
+- **Docker** (optional) for deployment — see [Deployment](#deployment)
 
 ## How the pipeline works
 
 1. **Ingestion (once per uploaded document):** extract text per page,
    split each page's text into overlapping chunks (keeping track of
    which page each chunk came from), embed all chunks, and build a FAISS
-   index over the embeddings.
+   index over the embeddings. The resulting index is held in server
+   memory, keyed by a session cookie set on the response.
 2. **Query (once per question):** embed the question with the same
    model, retrieve the most similar chunks from the index, and build a
    prompt containing only those chunks (each labeled with its page
    number) plus an instruction to answer strictly from them — or say the
    document doesn't contain the answer.
-3. **Response:** the LLM's answer is shown together with the retrieved
-   passages and their page numbers, so the answer can always be checked
-   against the source.
+3. **Response:** the LLM's answer is returned as JSON together with the
+   retrieved passages and their page numbers, and the frontend renders
+   both, so the answer can always be checked against the source.
 
 ## Installation
 
@@ -160,28 +168,29 @@ instead of Groq. `.env` is gitignored; never commit real API keys.
 ## How to run
 
 ```bash
-streamlit run app.py
+uvicorn main:app --reload
 ```
 
-This opens the app in your browser at `http://localhost:8501`.
+Then open `http://localhost:8000` in your browser. `--reload` is for
+local development (auto-restarts on code changes); drop it for anything
+resembling production use.
 
 ## Usage
 
-1. Upload a PDF in the sidebar (25MB limit).
-2. Wait for indexing to finish — the sidebar then shows a document card
-   with the filename, page count, chunk count, and a **Ready** badge.
-3. Ask a question in the chat box at the bottom and press Enter.
-4. Read the answer, then open the **Sources** panel attached to that
-   answer to see exactly which page(s) and passage(s) it came from, with
-   similarity scores.
+1. Upload a PDF (click the upload area, or drag a file onto it). 25MB
+   limit.
+2. Wait for indexing to finish — the document bar then shows the
+   filename, page count, and chunk count.
+3. Ask a question in the chat box and press Enter (Shift+Enter for a
+   newline).
+4. Read the answer, then open the **Sources** disclosure under it to see
+   exactly which page(s) and passage(s) it came from, with similarity
+   scores.
 5. Keep asking follow-up questions — the conversation stays visible for
    the session. Each question is answered independently from the
    document (previous turns are not fed back into the model).
-6. Use **Remove document** in the sidebar to clear the document and the
-   conversation, then upload a different PDF.
-7. (Optional) Open **Advanced settings** in the sidebar to change chunk
-   size, chunk overlap, or top-k — the document is re-indexed
-   automatically when chunking settings change.
+6. Use **Remove document** to clear the document and the conversation,
+   then upload a different PDF.
 
 If the document contains no extractable text (empty, corrupt,
 password-protected, or image-only without OCR), or the LLM API key is
@@ -195,9 +204,9 @@ during chunking (`chunker.py`). When the LLM answers, the app shows the
 top-k retrieved passages alongside that specific answer — independent of
 whether the LLM explicitly cites a page in its own text — so you can
 always see which parts of the document the answer is (or isn't) actually
-grounded in, along with a similarity score for each. Passage text is
-rendered literally, never as markdown, so document content cannot inject
-formatting into the interface.
+grounded in, along with a similarity score for each. The frontend inserts
+all document/answer text with `textContent`, never `innerHTML`, so
+nothing from the document or the model can inject markup into the page.
 
 ## Security notes
 
@@ -210,40 +219,46 @@ LLM, so a few things are handled deliberately:
   PDF containing injected "ignore all previous instructions" and
   system-prompt-exfiltration payloads — the model reported the injected
   text as document content and refused the exfiltration attempt instead
-  of obeying either.
+  of obeying either (see `tests/test_prompt_injection.py`).
 - **Secrets**: the API key is read only from the environment
   (`LLM_API_KEY`). It is never logged, rendered, or committed; `.env` is
   gitignored and only `.env.example` (placeholders) is tracked.
+- **Session cookie**: the per-document session ID is an `httponly`,
+  `samesite=lax` cookie set by the server — not readable from JavaScript,
+  which limits exposure to XSS-based token theft.
 - **Resource limits**: uploads are capped at 25MB and questions at 1000
-  characters, since each upload is held in memory and embedded.
-- **Rendering**: document text is displayed with Streamlit's literal
-  text rendering (no raw HTML, no markdown interpretation).
+  characters, since each upload is held in memory and embedded. Sessions
+  expire from server memory after 2 hours of inactivity.
+- **Rendering**: all dynamic content is inserted via `textContent` (see
+  above), never raw HTML or markdown interpretation.
 
 ## Evaluation methodology
 
 Every test result described here was actually run; none is assumed or
 fabricated — see `DECISIONS.md` for the full chronological log.
 
-### Unit-level testing
-Each pipeline stage is covered by a real, committed `pytest` suite
-(`tests/`) rather than one-off manual checks: PDF extraction on a valid
-and an invalid/empty PDF, chunking (correct page attribution, more
-chunks at smaller `chunk_size`), embeddings (384-dim vectors, related
-text scores higher similarity than unrelated text), FAISS retrieval
-(correct top match for a known query), the LLM client (grounded answer,
-correct refusal on an unanswerable question, clean error on a missing
-API key), the full pipeline end-to-end, and prompt-injection resistance
-(see Security notes above). Run it yourself with `pytest -v`. Tests that
-call a real LLM API skip automatically if `LLM_API_KEY` isn't set — a
-GitHub Actions workflow runs the rest on every push/PR (see
-`CONTRIBUTING.md`). The Streamlit UI itself has no automated coverage —
-see UI testing below.
+### Automated testing
+A committed `pytest` suite (`tests/`) covers PDF extraction, chunking,
+embeddings, FAISS retrieval, the LLM client, the full pipeline,
+prompt-injection resistance, and the FastAPI HTTP layer (upload, session
+handling, error responses). Run it yourself:
 
-### UI testing
-Driven in a real headless browser against the running Streamlit app:
-upload → ingest → ask → answer with correct source page → expand sources
-→ all passages shown with correct pages and descending similarity
-scores, with zero browser console errors.
+```bash
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+Tests that call a real LLM API skip automatically if `LLM_API_KEY` isn't
+set — a GitHub Actions workflow runs the rest on every push/PR (see
+`CONTRIBUTING.md`).
+
+### Manual end-to-end / UI testing
+The frontend itself has no automated coverage. It has been manually
+verified in a real headless browser, at both desktop and mobile (375px)
+viewport widths: upload → ingest → ask → answer with correct source page
+→ expand sources → follow-up question → unanswerable question correctly
+refused → remove document → re-upload, with zero browser console errors
+and no horizontal overflow at mobile width.
 
 ### Real-world validation
 A minimal synthetic PDF is bundled (`sample_docs/sample.pdf`) purely as
@@ -279,6 +294,30 @@ python evaluate.py --pdf <path-to-pdf> --questions <path-to-questions.json> --ou
 where `<path-to-questions.json>` is a JSON file containing a list of
 question strings.
 
+## Deployment
+
+The app is a standard FastAPI ASGI app, deployable anywhere that can run
+one. A `Dockerfile` is included:
+
+```bash
+docker build -t ai-document-assistant .
+docker run -p 8000:8000 --env-file .env ai-document-assistant
+```
+
+Any host that runs containers (Render, Railway, Fly.io, Google Cloud
+Run, etc.) works the same way: build the image, set `LLM_API_KEY` (and
+optionally `LLM_BASE_URL`/`LLM_MODEL`) as environment variables/secrets
+on the platform, and point it at port 8000. There's no platform-specific
+configuration in this repo beyond the `Dockerfile` itself, deliberately —
+picking one hosting provider's proprietary config format over a portable
+container felt like the wrong default for a project meant to be run
+anywhere.
+
+**Note on scale**: session state (the FAISS index per uploaded document)
+lives in the process's memory — see Known limitations below. This is
+fine for a single instance; it is not designed to run behind a
+load balancer with multiple replicas without a shared session store.
+
 ## Known limitations
 
 - Single document per session (multi-document support would be a
@@ -287,7 +326,12 @@ question strings.
   context: each question is answered independently from the document, so
   follow-ups like "and what about that one?" won't resolve against the
   previous turn.
-- Session state is per-browser-session and resets on reload.
+- Session state lives in server process memory, keyed by a cookie: it is
+  lost on server restart, isn't shared across multiple instances/replicas
+  of the app, and is pruned after 2 hours of inactivity. This is a
+  deliberate simplicity tradeoff for a project at this scale, not an
+  oversight — a production multi-instance deployment would need a shared
+  store (e.g. Redis) instead.
 - Uploads are capped at 25MB, and scanned/image-only PDFs with no
   embedded text layer will not extract any text (no OCR step).
 - Chunking is character-based, not sentence/semantic-boundary aware —
@@ -301,6 +345,10 @@ question strings.
   slow down rapid, repeated evaluation runs; `llm_client.py` retries
   automatically with backoff, but very fast bulk evaluation may still be
   gated by provider limits.
+- No live/hosted deployment of this app has been verified as part of
+  this project; the `Dockerfile` and instructions above are correct and
+  tested locally, but "deploys cleanly on X" for any specific third-party
+  platform hasn't been claimed unless it's actually been done.
 
 ## Possible future improvements
 
@@ -317,3 +365,5 @@ question strings.
 - **Reranking** — a lightweight cross-encoder reranking step over the
   initial retrieval results, for higher-precision passage selection on
   larger documents.
+- **Shared session store** — swap the in-memory session dict for Redis
+  (or similar) if this ever needs to run behind multiple replicas.

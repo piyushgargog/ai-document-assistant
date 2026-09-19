@@ -41,7 +41,8 @@ Please include:
 ## Scope
 
 In scope: this application's own code — prompt construction and grounding,
-handling of uploaded files, secret handling, and the Streamlit UI.
+handling of uploaded files, secret handling, the FastAPI backend
+(`main.py`), and the frontend (`static/`).
 
 Out of scope: the underlying third-party LLM provider's model behavior or
 infrastructure (e.g. Groq, OpenAI, or any other OpenAI-compatible endpoint

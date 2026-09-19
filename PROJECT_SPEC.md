@@ -39,9 +39,10 @@ Build a document question-answering tool that:
 - Automatic document summary on load.
 
 ### Explicitly not building
-- User accounts, persistence across sessions, or a database beyond the in-memory/on-disk FAISS index for the current document.
+- User accounts, persistence across sessions, or a database beyond the in-memory FAISS index for the current document.
 - Fine-tuning any model.
-- Any UI beyond a single Streamlit app.
+- Any UI beyond a single-page web app (see `DECISIONS.md` for the Streamlit → FastAPI + static frontend migration and why).
+- A frontend build step, framework, or bundler — the frontend is plain HTML/CSS/JS.
 
 ## Functional Requirements
 
@@ -62,9 +63,10 @@ Build a document question-answering tool that:
 |----|-------------|
 | NFR1 | Code must be small, clean, and readable — this is a portfolio/demonstration project prioritizing clarity over premature production hardening. |
 | NFR2 | LLM provider/model/API key must be configurable via environment variables, not hardcoded. |
-| NFR3 | The app must run locally via `streamlit run app.py` with a documented setup (`README.md`). |
+| NFR3 | The app must run locally via `uvicorn main:app` with a documented setup (`README.md`), and be deployable via the included `Dockerfile` on any container host. |
 | NFR4 | The app must degrade gracefully (clear error message, not a crash) when: the API key is missing, the PDF is invalid/empty, or retrieval finds nothing useful. |
 | NFR5 | No fabricated test results — all testing in `DECISIONS.md`/README must reflect actual runs. |
+| NFR6 | The UI must be usable on a mobile-width viewport (no horizontal overflow, input reachable, readable text) without a separate mobile app or a CSS framework. |
 
 ## Acceptance Criteria
 
@@ -79,5 +81,5 @@ These are the quality dimensions a document QA/RAG tool should be judged on:
 ## Constraints
 
 - Single document only for the core build (multi-document support is a possible future enhancement).
-- Must use: Python, Streamlit, PyMuPDF, sentence-transformers, FAISS, and a configurable LLM API.
+- Must use: Python, PyMuPDF, sentence-transformers, FAISS, a configurable LLM API, and a minimal web UI (FastAPI + a static HTML/CSS/JS frontend — originally Streamlit; see `DECISIONS.md` for the migration).
 - Must actually run and be tested before being called done — no untested claims.
