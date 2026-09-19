@@ -1,0 +1,37 @@
+version: 2
+
+updates:
+  # Python dependencies (requirements.txt / requirements-dev.txt).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      # Bundle low-risk updates into one PR; major version bumps (more
+      # likely to need code changes or a DECISIONS.md note) still get their
+      # own individual PR so they're reviewed on their own.
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Actions used in .github/workflows/*.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
