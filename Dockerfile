@@ -6,6 +6,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install the CPU-only PyTorch build first, from PyTorch's own CPU wheel
+# index. This app never uses a GPU, but PyPI's default "torch" wheel on
+# Linux bundles several hundred MB of NVIDIA CUDA packages regardless --
+# installing the CPU build here first means sentence-transformers (pulled
+# in by requirements.txt below) finds torch already satisfied and never
+# reaches for the CUDA-bundled variant.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
