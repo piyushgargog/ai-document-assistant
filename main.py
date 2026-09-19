@@ -54,8 +54,23 @@ def _get_index_state(request: Request) -> pipeline.IndexState | None:
     return index_state
 
 
+def _is_https(request: Request) -> bool:
+    """True if this request reached us over HTTPS, directly or via Nginx.
+
+    Nginx (see DECISIONS.md) forwards X-Forwarded-Proto based on its own
+    $scheme, so this correctly reports False on the current plain-HTTP
+    deployment (the session cookie stays usable) and would automatically
+    report True if TLS is added in front of it later, with no code change
+    needed here.
+    """
+    if request.url.scheme == "https":
+        return True
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    return forwarded_proto.split(",")[0].strip().lower() == "https"
+
+
 @app.post("/api/ingest")
-async def ingest(file: UploadFile = File(...)):
+async def ingest(request: Request, file: UploadFile = File(...)):
     _prune_expired_sessions()
 
     if not (file.filename or "").lower().endswith(".pdf"):
@@ -97,6 +112,7 @@ async def ingest(file: UploadFile = File(...)):
         session_id,
         httponly=True,
         samesite="lax",
+        secure=_is_https(request),
         max_age=SESSION_TTL_SECONDS,
     )
     return response
@@ -123,9 +139,15 @@ async def ask(request: Request):
         result = pipeline.answer(question, index_state)
         return JSONResponse({"answer": result["answer"], "sources": result["sources"]})
     except LLMConfigError as e:
-        return JSONResponse({"error": str(e)})
+        # Logged server-side only -- never echo exception text back to the
+        # client (see DECISIONS.md: CodeQL py/stack-trace-exposure).
+        print(f"LLM configuration error while answering: {e}")
+        return JSONResponse(
+            {"error": "The assistant is not configured correctly. Please contact the site administrator."}
+        )
     except LLMRequestError as e:
-        return JSONResponse({"error": f"The LLM API request failed: {e}"})
+        print(f"LLM request error while answering: {e}")
+        return JSONResponse({"error": "The LLM API request failed. Please try again in a moment."})
     except Exception as e:
         print(f"Unexpected error while answering: {e}")
         return JSONResponse({"error": "Something went wrong while answering that question. Please try again."})
