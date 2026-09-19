@@ -16,10 +16,13 @@ Closes #
 
 ## How was this tested?
 
-There's no CI or automated test suite yet (see `CONTRIBUTING.md`), so please
-describe what you actually ran:
+CI runs the non-LLM part of `pytest` automatically, but that's not a
+substitute for describing what you actually ran (see `CONTRIBUTING.md`):
 
+- [ ] Ran `pytest -v` locally (with `LLM_API_KEY` set, if possible, to also
+      exercise the LLM-dependent tests that CI skips)
 - [ ] Ran `streamlit run app.py` and manually tested the affected flow
+      (the UI has no automated test coverage)
 - [ ] Ran `evaluate.py` and checked for retrieval/answer regressions
       (if this PR touches chunking, retrieval, or the prompt)
 - [ ] Other (describe):

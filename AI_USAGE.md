@@ -89,6 +89,27 @@ the end.
   evaluation was re-run to confirm the previously documented findings
   were still accurate rather than silently invalidated.
 
+## Autonomous Maintenance Pass
+
+- Claude Code was authorized to act as an autonomous maintainer: inspect
+  the repository, fix genuine issues on its own judgment, and document
+  what changed, without asking permission for each individual fix.
+- It re-read every source file directly rather than relying on earlier
+  context, and found three real, previously-unnoticed gaps (unhandled
+  exceptions on the ingestion/query paths, a missing-API-key crash in
+  `evaluate.py`, a stale README placeholder) — all fixed and tested; see
+  `DECISIONS.md` for specifics.
+- It also identified that all prior test verification in this project
+  existed only as throwaway scripts in a temp directory, never committed
+  — a real gap given `CONTRIBUTING.md` itself calls out the missing test
+  suite as desirable — and added a genuine, committed `pytest` suite plus
+  a credential-free CI workflow to close it, rather than leaving that
+  gap unaddressed because it wasn't explicitly requested this time.
+- While verifying the new test suite, it caught its own mistake — a
+  fixture that silently skipped every LLM-dependent test even with a
+  valid key configured, because `.env` wasn't being loaded — rather than
+  reporting the misleading "6 skipped" result as if it were success.
+
 ## Principles followed
 
 - No fabricated test results, decisions, or requirements — ever.

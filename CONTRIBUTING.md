@@ -25,7 +25,7 @@ venv\Scripts\activate
 # macOS/Linux
 source venv/bin/activate
 
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # includes requirements.txt + pytest
 cp .env.example .env   # then fill in LLM_API_KEY
 ```
 
@@ -58,12 +58,30 @@ any addition to the pipeline in the PR description.
 
 ## Testing your changes
 
-There's no CI pipeline or automated test suite committed to this repo yet, so
-changes need to be verified manually before opening a PR:
+There's a small `pytest` suite (`tests/`) covering PDF extraction, chunking,
+embeddings, FAISS retrieval, the LLM client, the full pipeline, and
+prompt-injection resistance:
+
+```bash
+pytest -v
+```
+
+Tests that call a real LLM API (`llm_client`, end-to-end `pipeline`, and the
+prompt-injection tests) automatically skip if `LLM_API_KEY` isn't set — so
+`pytest` still runs meaningfully without credentials, just with less
+coverage. A GitHub Actions workflow (`.github/workflows/tests.yml`) runs this
+suite on every push/PR to `main`; since no API key secret is configured
+there, only the non-LLM tests actually execute in CI — the LLM-dependent
+ones skip there too. This is deliberate, not an oversight: it keeps CI
+credential-free.
+
+What's **not** automated, and still needs manual verification before opening
+a PR:
 
 - Run `streamlit run app.py`, upload `sample_docs/sample.pdf`, and confirm
   the full flow works: upload, indexing, an answerable question with correct
-  source citations, and a clearly unanswerable question.
+  source citations, and a clearly unanswerable question. The UI itself has
+  no automated test coverage.
 - If your change touches retrieval, chunking, or the prompt, run
   `evaluate.py` against a document and question set and check the comparison
   report for regressions:
@@ -72,9 +90,6 @@ changes need to be verified manually before opening a PR:
   ```
 - Never commit `.env`, an API key, or any other secret. `.env` is gitignored
   — if your diff touches it, something is wrong.
-
-A proper automated test suite (e.g. pytest) would be a welcome contribution
-in its own right.
 
 ## Documentation
 

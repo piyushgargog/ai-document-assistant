@@ -225,13 +225,19 @@ Every test result described here was actually run; none is assumed or
 fabricated — see `DECISIONS.md` for the full chronological log.
 
 ### Unit-level testing
-Each pipeline stage was tested directly (no UI) before integration: PDF
-extraction on a valid and an invalid/empty PDF, chunking (correct page
-attribution, more chunks at smaller `chunk_size`), embeddings (384-dim
-vectors, related text scores higher similarity than unrelated text),
-FAISS retrieval (correct top match for a known query), the LLM client
-(grounded answer, correct refusal on an unanswerable question, clean
-error on a missing API key), and the full pipeline end-to-end.
+Each pipeline stage is covered by a real, committed `pytest` suite
+(`tests/`) rather than one-off manual checks: PDF extraction on a valid
+and an invalid/empty PDF, chunking (correct page attribution, more
+chunks at smaller `chunk_size`), embeddings (384-dim vectors, related
+text scores higher similarity than unrelated text), FAISS retrieval
+(correct top match for a known query), the LLM client (grounded answer,
+correct refusal on an unanswerable question, clean error on a missing
+API key), the full pipeline end-to-end, and prompt-injection resistance
+(see Security notes above). Run it yourself with `pytest -v`. Tests that
+call a real LLM API skip automatically if `LLM_API_KEY` isn't set — a
+GitHub Actions workflow runs the rest on every push/PR (see
+`CONTRIBUTING.md`). The Streamlit UI itself has no automated coverage —
+see UI testing below.
 
 ### UI testing
 Driven in a real headless browser against the running Streamlit app:
