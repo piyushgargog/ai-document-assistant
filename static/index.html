@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Document Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>AI Document Assistant</h1>
+    <p class="tagline">
+      Upload a PDF and ask questions about it in plain language. Answers are
+      grounded strictly in the document's content, with the source page shown
+      for every answer.
+    </p>
+  </header>
+
+  <main>
+    <!-- Empty / upload state -->
+    <section id="upload-view" class="panel">
+      <label for="file-input" class="dropzone" id="dropzone">
+        <span class="dropzone-title">Upload a PDF</span>
+        <span class="dropzone-hint">Click to choose a file, or drag one here (25MB limit)</span>
+      </label>
+      <input id="file-input" type="file" accept="application/pdf" hidden />
+      <p id="upload-error" class="error-text" hidden></p>
+    </section>
+
+    <!-- Indexing state -->
+    <section id="indexing-view" class="panel" hidden>
+      <p class="status-line"><span class="spinner" aria-hidden="true"></span> Reading and indexing document&hellip;</p>
+    </section>
+
+    <!-- Document ready + chat -->
+    <section id="chat-view" hidden>
+      <div class="doc-bar">
+        <div class="doc-info">
+          <span class="doc-name" id="doc-name"></span>
+          <span class="doc-meta" id="doc-meta"></span>
+        </div>
+        <button id="remove-btn" class="btn-secondary" type="button">Remove document</button>
+      </div>
+
+      <div id="messages" class="messages" aria-live="polite"></div>
+
+      <form id="ask-form" class="ask-form">
+        <textarea
+          id="question-input"
+          class="question-input"
+          placeholder="Ask a question about the document&hellip;"
+          maxlength="1000"
+          rows="1"
+          required
+        ></textarea>
+        <button type="submit" class="btn-primary" id="ask-btn">Ask</button>
+      </form>
+    </section>
+  </main>
+
+  <template id="source-item-template">
+    <div class="source-item">
+      <div class="source-head">
+        <span class="source-page"></span>
+        <span class="source-score"></span>
+      </div>
+      <p class="source-text"></p>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

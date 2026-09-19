@@ -1,4 +1,6 @@
-streamlit>=1.64.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
 pymupdf>=1.28.0
 sentence-transformers>=6.1.0
 faiss-cpu>=1.15.0
